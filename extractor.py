@@ -53,15 +53,39 @@ class Handler(FileSystemEventHandler):
                 with open(directory + 'fullchain.pem', 'w') as f:
                     f.write(fullchain)
 
+                # Write private key, certificate and chain to flat files
+                directory = 'certs_flat/'
+
+                with open(directory + c['Certificate']['Domain'] + '.key', 'w') as f:
+                    f.write(privatekey)
+                with open(directory + c['Certificate']['Domain'] + '.crt', 'w') as f:
+                    f.write(fullchain)
+                with open(directory + c['Certificate']['Domain'] + '.chain.pem', 'w') as f:
+                    f.write(chain)
+
+                if c['Domains']['SANs']:
+                    for name in c['Domains']['SANs']:
+                        with open(directory + name + '.key', 'w') as f:
+                            f.write(privatekey)
+                        with open(directory + name + '.crt', 'w') as f:
+                            f.write(fullchain)
+                        with open(directory + name + '.chain.pem', 'w') as f:
+                            f.write(chain)
+
                 print('Extracted certificate for: ' + c['Domains']['Main'] + (', ' + ', '.join(c['Domains']['SANs']) if c['Domains']['SANs'] else ''))
 
 if __name__ == "__main__":
     # Determine path to watch
     path = sys.argv[1] if len(sys.argv) > 1 else './data'
 
-    # Create output directory if it doesn't exist
+    # Create output directories if it doesn't exist
     try:
         os.makedirs('certs')
+    except OSError as error:
+        if error.errno != errno.EEXIST:
+            raise
+    try:
+        os.makedirs('certs_flat')
     except OSError as error:
         if error.errno != errno.EEXIST:
             raise

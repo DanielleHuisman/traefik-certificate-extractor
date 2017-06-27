@@ -1,4 +1,5 @@
 certs/
+certs_flat/
 data/
 
 # Python ignores
