@@ -3,6 +3,7 @@ import os
 import errno
 import time
 import json
+import argparse
 from base64 import b64decode
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -75,6 +76,8 @@ class Handler(FileSystemEventHandler):
                 print('Extracted certificate for: ' + c['Domains']['Main'] + (', ' + ', '.join(c['Domains']['SANs']) if c['Domains']['SANs'] else ''))
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Tool to extract Let\'s Encrypt certificates from Traefik\'s ACME storage file.')
+
     # Determine path to watch
     path = sys.argv[1] if len(sys.argv) > 1 else './data'
 
