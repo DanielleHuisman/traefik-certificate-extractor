@@ -21,19 +21,22 @@ class Handler(FileSystemEventHandler):
 
             # Read JSON file
             data = json.loads(open(event.src_path).read())
-            certs = data['DomainsCertificate']['Certs']
+            is_v2 = 'acme-v02' in data['Account']['Registration']['uri']
+            certs = data['Certificates'] if is_v2 else data['DomainsCertificate']['Certs']
 
             # Loop over all certificates
             for c in certs:
+                name = c['Domain']['Main'] if is_v2 else c['Certificate']['Domain']
+
                 # Decode private key, certificate and chain
-                privatekey = b64decode(c['Certificate']['PrivateKey']).decode('utf-8')
-                fullchain = b64decode(c['Certificate']['Certificate']).decode('utf-8')
+                privatekey = b64decode(c['Key'] if is_v2 else c['Certificate']['PrivateKey']).decode('utf-8')
+                fullchain = b64decode(c['Certificate'] if is_v2 else c['Certificate']['Certificate']).decode('utf-8')
                 start = fullchain.find('-----BEGIN CERTIFICATE-----', 1)
                 cert = fullchain[0:start]
                 chain = fullchain[start:]
 
                 # Create domain directory if it doesn't exist
-                directory = 'certs/' + c['Certificate']['Domain'] + '/'
+                directory = 'certs/' + name + '/'
                 try:
                     os.makedirs(directory)
                 except OSError as error:
@@ -56,11 +59,11 @@ class Handler(FileSystemEventHandler):
                 # Write private key, certificate and chain to flat files
                 directory = 'certs_flat/'
 
-                with open(directory + c['Certificate']['Domain'] + '.key', 'w') as f:
+                with open(directory + name + '.key', 'w') as f:
                     f.write(privatekey)
-                with open(directory + c['Certificate']['Domain'] + '.crt', 'w') as f:
+                with open(directory + name + '.crt', 'w') as f:
                     f.write(fullchain)
-                with open(directory + c['Certificate']['Domain'] + '.chain.pem', 'w') as f:
+                with open(directory + name + '.chain.pem', 'w') as f:
                     f.write(chain)
 
                 if c['Domains']['SANs']:
