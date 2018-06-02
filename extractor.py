@@ -21,19 +21,42 @@ class Handler(FileSystemEventHandler):
 
             # Read JSON file
             data = json.loads(open(event.src_path).read())
-            certs = data['DomainsCertificate']['Certs']
+
+            certs = []
+            acme = 0
+            try:
+                certs = data['DomainsCertificate']['Certs']
+                acme = 1
+            except KeyError:
+                try:
+                    certs = data['Certificates']
+                    acme = 2
+                except KeyError:
+                    print('Certificates Not Found')
 
             # Loop over all certificates
             for c in certs:
+
+                if 1 == acme:
+                    domain = c['Certificate']['Domain']
+                    SANs = c['Domains']['SANs']
+                    privatekey = c['Certificate']['PrivateKey']
+                    fullchain = c['Certificate']['Certificate']
+                elif 2 == acme:
+                    domain = c['Domain']['Main']
+                    SANs = c['Domain']['SANs']
+                    privatekey = c['Key']
+                    fullchain = c['Certificate']
+
                 # Decode private key, certificate and chain
-                privatekey = b64decode(c['Certificate']['PrivateKey']).decode('utf-8')
-                fullchain = b64decode(c['Certificate']['Certificate']).decode('utf-8')
+                privatekey = b64decode(privatekey).decode('utf-8')
+                fullchain = b64decode(fullchain).decode('utf-8')
                 start = fullchain.find('-----BEGIN CERTIFICATE-----', 1)
                 cert = fullchain[0:start]
                 chain = fullchain[start:]
 
                 # Create domain directory if it doesn't exist
-                directory = 'certs/' + c['Certificate']['Domain'] + '/'
+                directory = 'certs/' + domain + '/'
                 try:
                     os.makedirs(directory)
                 except OSError as error:
@@ -56,15 +79,15 @@ class Handler(FileSystemEventHandler):
                 # Write private key, certificate and chain to flat files
                 directory = 'certs_flat/'
 
-                with open(directory + c['Certificate']['Domain'] + '.key', 'w') as f:
+                with open(directory + domain + '.key', 'w') as f:
                     f.write(privatekey)
-                with open(directory + c['Certificate']['Domain'] + '.crt', 'w') as f:
+                with open(directory + domain + '.crt', 'w') as f:
                     f.write(fullchain)
-                with open(directory + c['Certificate']['Domain'] + '.chain.pem', 'w') as f:
+                with open(directory + domain + '.chain.pem', 'w') as f:
                     f.write(chain)
 
-                if c['Domains']['SANs']:
-                    for name in c['Domains']['SANs']:
+                if SANs:
+                    for name in SANs:
                         with open(directory + name + '.key', 'w') as f:
                             f.write(privatekey)
                         with open(directory + name + '.crt', 'w') as f:
@@ -72,7 +95,7 @@ class Handler(FileSystemEventHandler):
                         with open(directory + name + '.chain.pem', 'w') as f:
                             f.write(chain)
 
-                print('Extracted certificate for: ' + c['Domains']['Main'] + (', ' + ', '.join(c['Domains']['SANs']) if c['Domains']['SANs'] else ''))
+                print('Extracted certificate for: ' + domain + (', ' + ', '.join(SANs) if SANs else ''))
 
 if __name__ == "__main__":
     # Determine path to watch
