@@ -21,16 +21,32 @@ class Handler(FileSystemEventHandler):
 
             # Read JSON file
             data = json.loads(open(event.src_path).read())
-            is_v2 = 'acme-v02' in data['Account']['Registration']['uri']
-            certs = data['Certificates'] if is_v2 else data['DomainsCertificate']['Certs']
+
+            # Determine ACME version
+            acme_version = 2 if 'acme-v02' in data['Account']['Registration']['uri'] else 1
+
+            # Find certificates
+            if acme_version == 1:
+                certs = data['DomainsCertificate']['Certs']
+            elif acme_version == 2:
+                certs = data['Certificates']
 
             # Loop over all certificates
             for c in certs:
-                name = c['Domain']['Main'] if is_v2 else c['Certificate']['Domain']
+                if acme_version == 1:
+                    name = c['Certificate']['Domain']
+                    privatekey = c['Certificate']['PrivateKey']
+                    fullchain = c['Certificate']['Certificate']
+                    sans = c['Domains']['SANs']
+                elif acme_version == 2:
+                    name = c['Domain']['Main']
+                    privatekey = c['Key']
+                    fullchain = c['Certificate']
+                    sans = c['Domains']['SANs']
 
                 # Decode private key, certificate and chain
-                privatekey = b64decode(c['Key'] if is_v2 else c['Certificate']['PrivateKey']).decode('utf-8')
-                fullchain = b64decode(c['Certificate'] if is_v2 else c['Certificate']['Certificate']).decode('utf-8')
+                privatekey = b64decode(privatekey).decode('utf-8')
+                fullchain = b64decode(fullchain).decode('utf-8')
                 start = fullchain.find('-----BEGIN CERTIFICATE-----', 1)
                 cert = fullchain[0:start]
                 chain = fullchain[start:]
@@ -66,8 +82,8 @@ class Handler(FileSystemEventHandler):
                 with open(directory + name + '.chain.pem', 'w') as f:
                     f.write(chain)
 
-                if c['Domains']['SANs']:
-                    for name in c['Domains']['SANs']:
+                if sans:
+                    for name in sans:
                         with open(directory + name + '.key', 'w') as f:
                             f.write(privatekey)
                         with open(directory + name + '.crt', 'w') as f:
@@ -75,7 +91,7 @@ class Handler(FileSystemEventHandler):
                         with open(directory + name + '.chain.pem', 'w') as f:
                             f.write(chain)
 
-                print('Extracted certificate for: ' + c['Domains']['Main'] + (', ' + ', '.join(c['Domains']['SANs']) if c['Domains']['SANs'] else ''))
+                print('Extracted certificate for: ' + name + (', ' + ', '.join(sans) if sans else ''))
 
 if __name__ == "__main__":
     # Determine path to watch
