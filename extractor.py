@@ -42,7 +42,7 @@ class Handler(FileSystemEventHandler):
                     name = c['Domain']['Main']
                     privatekey = c['Key']
                     fullchain = c['Certificate']
-                    sans = c['Domains']['SANs']
+                    sans = c['Domain']['SANs']
 
                 # Decode private key, certificate and chain
                 privatekey = b64decode(privatekey).decode('utf-8')
