@@ -185,9 +185,9 @@ class Handler(FileSystemEventHandler):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Extract traefik letsencrypt certificates.')
-    parser.add_argument('FILE', nargs='?', default='acme.json', type=PathType(
+    parser.add_argument('-c', '--certificate', default='acme.json', type=PathType(
         exists=True), help='file that contains the traefik certificates (default acme.json)')
-    parser.add_argument('OUTPUT', nargs='?', default='.',
+    parser.add_argument('-d', '--directory', default='.',
                         type=PathType(type='dir'), help='output folder')
     parser.add_argument('-f', '--flat', action='store_true',
                         help='outputs all certificates into one folder')
