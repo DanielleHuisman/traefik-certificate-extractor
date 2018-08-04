@@ -73,15 +73,14 @@ class PathType(object):
         return string
 
 
-def restartContainerWithDomain(domain):
-    return
-#    client = docker.from_env()
-#    container = client.containers.list(filters = {"label" : "com.github.SnowMB.traefik-certificate-extractor.restart_domain"})
-#    for c in container:
-#        domains = str.split(c.labels["com.github.SnowMB.traefik-certificate-extractor.restart_domain"], ',')
-#        if domain in domains:
-#            print('restarting container ' + c.id)
-#            c.restart()
+def restartContainerWithDomain(domains):
+    client = docker.from_env()
+    container = client.containers.list(filters = {"label" : "com.github.SnowMB.traefik-certificate-extractor.restart_domain"})
+    for c in container:
+        restartDomains = str.split(c.labels["com.github.SnowMB.traefik-certificate-extractor.restart_domain"], ',')
+        if not domains.isdisjoint(restartDomains):
+            print('restarting container ' + c.id)
+            c.restart()
 
 
 def createCerts(file, directory, flat):
@@ -98,6 +97,8 @@ def createCerts(file, directory, flat):
         certs = data['Certificates']
 
     # Loop over all certificates
+    names = []
+
     for c in certs:
         if acme_version == 1:
             name = c['Certificate']['Domain']
@@ -117,50 +118,50 @@ def createCerts(file, directory, flat):
         cert = fullchain[0:start]
         chain = fullchain[start:]
 
-
         # Create domain directory if it doesn't exist
-        directory = 'certs/' + name + '/'
-        try:
-            os.makedirs(directory)
-        except OSError as error:
-            if error.errno != errno.EEXIST:
-                raise
+        directory = Path(directory)
+        if not directory.exists():
+            directory.mkdir()
 
-        # Write private key, certificate and chain to file
-        with open(directory + 'privkey.pem', 'w') as f:
-            f.write(privatekey)
+        if flat:
+            # Write private key, certificate and chain to flat files
+            with (directory / name + '.key').open('w') as f:
+                f.write(privatekey)
+            with (directory / name + '.crt').open('w') as f:
+                f.write(fullchain)
+            with (directory / name + '.chain.pem').open('w') as f:
+                f.write(chain)
 
-        with open(directory + 'cert.pem', 'w') as f:
-            f.write(cert)
+            if sans:
+                for name in sans:
+                    with (directory / name + '.key').open('w') as f:
+                        f.write(privatekey)
+                    with (directory / name + '.crt').open('w') as f:
+                        f.write(fullchain)
+                    with (directory / name + '.chain.pem').open('w') as f:
+                        f.write(chain)
+        else:
+            directory = directory / name
+            if not directory.exists():
+                directory.mkdir()
 
-        with open(directory + 'chain.pem', 'w') as f:
-            f.write(chain)
+            # Write private key, certificate and chain to file
+            with (directory / 'privkey.pem').open('w') as f:
+                f.write(privatekey)
 
-        with open(directory + 'fullchain.pem', 'w') as f:
-            f.write(fullchain)
+            with (directory / 'cert.pem').open('w') as f:
+                f.write(cert)
 
-        # Write private key, certificate and chain to flat files
-        directory = 'certs_flat/'
+            with (directory / 'chain.pem').open('w') as f:
+                f.write(chain)
 
-        with open(directory + name + '.key', 'w') as f:
-            f.write(privatekey)
-        with open(directory + name + '.crt', 'w') as f:
-            f.write(fullchain)
-        with open(directory + name + '.chain.pem', 'w') as f:
-            f.write(chain)
-
-        if sans:
-            for name in sans:
-                with open(directory + name + '.key', 'w') as f:
-                    f.write(privatekey)
-                with open(directory + name + '.crt', 'w') as f:
-                    f.write(fullchain)
-                with open(directory + name + '.chain.pem', 'w') as f:
-                    f.write(chain)
+            with (directory / 'fullchain.pem').open('w') as f:
+                f.write(fullchain)
 
         print('Extracted certificate for: ' + name +
               (', ' + ', '.join(sans) if sans else ''))
-        restartContainerWithDomain(name)
+        names.append(name)
+    return names
 
 
 class Handler(FileSystemEventHandler):
@@ -177,10 +178,13 @@ class Handler(FileSystemEventHandler):
     def handle(self, event):
         # Check if it's a JSON file
         print('DEBUG : event fired')
-        if not event.is_directory and event.src_path.endswith(str(self.args.FILE)):
+        if not event.is_directory and event.src_path.endswith(str(self.args.certificate)):
             print('Certificates changed')
 
-            createCerts(event.src_path)
+            domains = createCerts(
+                event.src_path, self.args.directory, self.args.flat)
+            if (self.args.restart_container):
+                restartContainerWithDomains(domains)
 
 
 if __name__ == "__main__":
@@ -192,17 +196,12 @@ if __name__ == "__main__":
                         type=PathType(type='dir'), help='output folder')
     parser.add_argument('-f', '--flat', action='store_true',
                         help='outputs all certificates into one folder')
+    parser.add_argument('-r', '--restart_container', action='store_true',
+                        help='uses the docker API to restart containers that are labeled accordingly')
     args = parser.parse_args()
 
     print('DEBUG: watching path: ' + str(args.certificate))
     print('DEBUG: output path: ' + str(args.directory))
-
-    # Create output directories if it doesn't exist
-    try:
-        os.makedirs(args.directory)
-    except OSError as error:
-        if error.errno != errno.EEXIST:
-            raise
 
     # Create event handler and observer
     event_handler = Handler(args)
