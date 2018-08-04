@@ -84,7 +84,7 @@ def restartContainerWithDomain(domain):
 #            c.restart()
 
 
-def createCerts(file):
+def createCerts(file, directory, flat):
     # Read JSON file
     data = json.loads(open(file).read())
 
@@ -116,6 +116,7 @@ def createCerts(file):
         start = fullchain.find('-----BEGIN CERTIFICATE-----', 1)
         cert = fullchain[0:start]
         chain = fullchain[start:]
+
 
         # Create domain directory if it doesn't exist
         directory = 'certs/' + name + '/'
@@ -193,12 +194,12 @@ if __name__ == "__main__":
                         help='outputs all certificates into one folder')
     args = parser.parse_args()
 
-    print('DEBUG: watching path: ' + str(args.FILE))
-    print('DEBUG: output path: ' + str(args.OUTPUT))
+    print('DEBUG: watching path: ' + str(args.certificate))
+    print('DEBUG: output path: ' + str(args.directory))
 
     # Create output directories if it doesn't exist
     try:
-        os.makedirs(args.OUTPUT)
+        os.makedirs(args.directory)
     except OSError as error:
         if error.errno != errno.EEXIST:
             raise
@@ -208,7 +209,7 @@ if __name__ == "__main__":
     observer = Observer()
 
     # Register the directory to watch
-    observer.schedule(event_handler, str(args.FILE.parent))
+    observer.schedule(event_handler, str(Path(args.certificate).parent))
 
     # Main loop to watch the directory
     observer.start()
