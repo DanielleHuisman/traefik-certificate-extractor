@@ -69,7 +69,7 @@ class PathType(object):
         return string
 
 
-#def restartContainerWithDomain(domain):
+def restartContainerWithDomain(domain):
 #    client = docker.from_env()
 #    container = client.containers.list(filters = {"label" : "com.github.SnowMB.traefik-certificate-extractor.restart_domain"})
 #    for c in container:
