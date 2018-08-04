@@ -81,7 +81,7 @@ def restartContainerWithDomains(domains):
         restartDomains = str.split(c.labels["com.github.SnowMB.traefik-certificate-extractor.restart_domain"], ',')
         if not set(domains).isdisjoint(restartDomains):
             print('restarting container ' + c.id)
-#            c.restart()
+            c.restart()
 
 
 def createCerts(args):
@@ -111,8 +111,8 @@ def createCerts(args):
             privatekey = c['Key']
             fullchain = c['Certificate']
             sans = c['Domain']['SANs']
-        
-        if (len(args.include)>0 and name not in args.include) or (len(args.exclude)>0 and name in args.exclude):
+
+        if (args.include and name not in args.include) or (args.exclude and name in args.exclude):
             continue
 
         # Decode private key, certificate and chain
@@ -145,7 +145,7 @@ def createCerts(args):
                     with (directory / name + '.chain.pem').open('w') as f:
                         f.write(chain)
         else:
-            directory = args.directory / name
+            directory = directory / name
             if not directory.exists():
                 directory.mkdir()
 
