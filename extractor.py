@@ -11,6 +11,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from pathlib import Path
 
+
 class PathType(object):
     def __init__(self, exists=True, type='file', dash_ok=True):
         '''exists:
@@ -22,42 +23,45 @@ class PathType(object):
            dash_ok: whether to allow "-" as stdin/stdout'''
 
         assert exists in (True, False, None)
-        assert type in ('file','dir','symlink',None) or hasattr(type,'__call__')
+        assert type in ('file', 'dir', 'symlink',
+                        None) or hasattr(type, '__call__')
 
         self._exists = exists
         self._type = type
         self._dash_ok = dash_ok
 
     def __call__(self, string):
-        if string=='-':
+        if string == '-':
             # the special argument "-" means sys.std{in,out}
             if self._type == 'dir':
-                raise err('standard input/output (-) not allowed as directory path')
+                raise err(
+                    'standard input/output (-) not allowed as directory path')
             elif self._type == 'symlink':
-                raise err('standard input/output (-) not allowed as symlink path')
+                raise err(
+                    'standard input/output (-) not allowed as symlink path')
             elif not self._dash_ok:
                 raise err('standard input/output (-) not allowed')
         else:
             e = os.path.exists(string)
-            if self._exists==True:
+            if self._exists == True:
                 if not e:
                     raise err("path does not exist: '%s'" % string)
 
                 if self._type is None:
                     pass
-                elif self._type=='file':
+                elif self._type == 'file':
                     if not os.path.isfile(string):
                         raise err("path is not a file: '%s'" % string)
-                elif self._type=='symlink':
+                elif self._type == 'symlink':
                     if not os.path.symlink(string):
                         raise err("path is not a symlink: '%s'" % string)
-                elif self._type=='dir':
+                elif self._type == 'dir':
                     if not os.path.isdir(string):
                         raise err("path is not a directory: '%s'" % string)
                 elif not self._type(string):
                     raise err("path not valid: '%s'" % string)
             else:
-                if self._exists==False and e:
+                if self._exists == False and e:
                     raise err("path exists: '%s'" % string)
 
                 p = os.path.dirname(os.path.normpath(string)) or '.'
@@ -70,6 +74,7 @@ class PathType(object):
 
 
 def restartContainerWithDomain(domain):
+    return
 #    client = docker.from_env()
 #    container = client.containers.list(filters = {"label" : "com.github.SnowMB.traefik-certificate-extractor.restart_domain"})
 #    for c in container:
@@ -77,7 +82,6 @@ def restartContainerWithDomain(domain):
 #        if domain in domains:
 #            print('restarting container ' + c.id)
 #            c.restart()
-
 
 
 def createCerts(file):
@@ -146,17 +150,16 @@ def createCerts(file):
 
         if sans:
             for name in sans:
-                 with open(directory + name + '.key', 'w') as f:
+                with open(directory + name + '.key', 'w') as f:
                     f.write(privatekey)
-                 with open(directory + name + '.crt', 'w') as f:
+                with open(directory + name + '.crt', 'w') as f:
                     f.write(fullchain)
-                 with open(directory + name + '.chain.pem', 'w') as f:
+                with open(directory + name + '.chain.pem', 'w') as f:
                     f.write(chain)
 
-        print('Extracted certificate for: ' + name + (', ' + ', '.join(sans) if sans else ''))
+        print('Extracted certificate for: ' + name +
+              (', ' + ', '.join(sans) if sans else ''))
         restartContainerWithDomain(name)
-
-
 
 
 class Handler(FileSystemEventHandler):
@@ -172,7 +175,7 @@ class Handler(FileSystemEventHandler):
 
     def handle(self, event):
         # Check if it's a JSON file
-        print ('DEBUG : event fired')
+        print('DEBUG : event fired')
         if not event.is_directory and event.src_path.endswith(str(self.args.FILE)):
             print('Certificates changed')
 
@@ -180,10 +183,14 @@ class Handler(FileSystemEventHandler):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Extract traefik letsencrypt certificates.')
-    parser.add_argument('FILE', nargs='?', default='acme.json', type= PathType(exists=True), help='file that contains the traefik certificates (default acme.json)')
-    parser.add_argument('OUTPUT', nargs='?', default='.', type=PathType(type='dir'), help='output folder')
-    parser.add_argument('-f', '--flat',action='store_true', help='outputs all certificates into one folder')
+    parser = argparse.ArgumentParser(
+        description='Extract traefik letsencrypt certificates.')
+    parser.add_argument('FILE', nargs='?', default='acme.json', type=PathType(
+        exists=True), help='file that contains the traefik certificates (default acme.json)')
+    parser.add_argument('OUTPUT', nargs='?', default='.',
+                        type=PathType(type='dir'), help='output folder')
+    parser.add_argument('-f', '--flat', action='store_true',
+                        help='outputs all certificates into one folder')
     args = parser.parse_args()
 
     print('DEBUG: watching path: ' + str(args.FILE))
@@ -195,8 +202,6 @@ if __name__ == "__main__":
     except OSError as error:
         if error.errno != errno.EEXIST:
             raise
-
-
 
     # Create event handler and observer
     event_handler = Handler(args)
