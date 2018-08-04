@@ -195,7 +195,7 @@ class Handler(FileSystemEventHandler):
                     self.isWaiting = True #trigger the work just once (multiple events get fired)
                     self.timer = threading.Timer(2, self.doTheWork)
                     self.timer.start()
-    
+
     def doTheWork(self):
         print('DEBUG : starting the work')
         domains = createCerts(self.args)
@@ -204,7 +204,7 @@ class Handler(FileSystemEventHandler):
 
         with self.lock:
             self.isWaiting = False
-	print('DEBUG : finished')
+        print('DEBUG : finished')
 
 
 if __name__ == "__main__":
