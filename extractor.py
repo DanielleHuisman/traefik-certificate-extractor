@@ -3,7 +3,7 @@ import os
 import errno
 import time
 import json
-#import docker
+import docker
 import argparse
 from argparse import ArgumentTypeError as err
 from base64 import b64decode
@@ -73,14 +73,14 @@ class PathType(object):
         return string
 
 
-def restartContainerWithDomain(domains):
+def restartContainerWithDomains(domains):
     client = docker.from_env()
     container = client.containers.list(filters = {"label" : "com.github.SnowMB.traefik-certificate-extractor.restart_domain"})
     for c in container:
         restartDomains = str.split(c.labels["com.github.SnowMB.traefik-certificate-extractor.restart_domain"], ',')
-        if not domains.isdisjoint(restartDomains):
+        if not set(domains).isdisjoint(restartDomains):
             print('restarting container ' + c.id)
-            c.restart()
+#            c.restart()
 
 
 def createCerts(file, directory, flat):
