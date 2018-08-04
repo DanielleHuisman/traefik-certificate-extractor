@@ -204,6 +204,7 @@ class Handler(FileSystemEventHandler):
 
         with self.lock:
             self.isWaiting = False
+	print('DEBUG : finished')
 
 
 if __name__ == "__main__":
