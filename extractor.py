@@ -84,9 +84,9 @@ def restartContainerWithDomains(domains):
 #            c.restart()
 
 
-def createCerts(file, directory, flat):
+def createCerts(args):
     # Read JSON file
-    data = json.loads(open(file).read())
+    data = json.loads(open(args.certificate).read())
 
     # Determine ACME version
     acme_version = 2 if 'acme-v02' in data['Account']['Registration']['uri'] else 1
@@ -111,6 +111,9 @@ def createCerts(file, directory, flat):
             privatekey = c['Key']
             fullchain = c['Certificate']
             sans = c['Domain']['SANs']
+        
+        if (len(args.include)>0 and name not in args.include) or (len(args.exclude)>0 and name in args.exclude):
+            continue
 
         # Decode private key, certificate and chain
         privatekey = b64decode(privatekey).decode('utf-8')
@@ -120,11 +123,11 @@ def createCerts(file, directory, flat):
         chain = fullchain[start:]
 
         # Create domain directory if it doesn't exist
-        directory = Path(directory)
+        directory = Path(args.directory)
         if not directory.exists():
             directory.mkdir()
 
-        if flat:
+        if args.flat:
             # Write private key, certificate and chain to flat files
             with (directory / name + '.key').open('w') as f:
                 f.write(privatekey)
@@ -142,7 +145,7 @@ def createCerts(file, directory, flat):
                     with (directory / name + '.chain.pem').open('w') as f:
                         f.write(chain)
         else:
-            directory = directory / name
+            directory = args.directory / name
             if not directory.exists():
                 directory.mkdir()
 
@@ -188,14 +191,15 @@ class Handler(FileSystemEventHandler):
             with self.lock:
                 if not self.isWaiting:
                     self.isWaiting = True #trigger the work just once (multiple events get fired)
-                    self.timer = threading.Timer(0.5, self.doTheWork)
+                    self.timer = threading.Timer(2, self.doTheWork)
                     self.timer.start()
     
     def doTheWork(self):
-        domains = createCerts(self.args.certificate, self.args.directory, self.args.flat)
+        print('DEBUG : starting the work')
+        domains = createCerts(self.args)
         if (self.args.restart_container):
             restartContainerWithDomains(domains)
-            
+
         with self.lock:
             self.isWaiting = False
 
@@ -211,6 +215,10 @@ if __name__ == "__main__":
                         help='outputs all certificates into one folder')
     parser.add_argument('-r', '--restart_container', action='store_true',
                         help='uses the docker API to restart containers that are labeled accordingly')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--include', nargs='*')
+    group.add_argument('--exclude', nargs='*')
+
     args = parser.parse_args()
 
     print('DEBUG: watching path: ' + str(args.certificate))
