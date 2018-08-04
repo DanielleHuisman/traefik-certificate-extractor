@@ -81,7 +81,8 @@ def restartContainerWithDomains(domains):
         restartDomains = str.split(c.labels["com.github.SnowMB.traefik-certificate-extractor.restart_domain"], ',')
         if not set(domains).isdisjoint(restartDomains):
             print('restarting container ' + c.id)
-            c.restart()
+            if not args.dry:
+                c.restart()
 
 
 def createCerts(args):
@@ -122,45 +123,46 @@ def createCerts(args):
         cert = fullchain[0:start]
         chain = fullchain[start:]
 
-        # Create domain directory if it doesn't exist
-        directory = Path(args.directory)
-        if not directory.exists():
-            directory.mkdir()
-
-        if args.flat:
-            # Write private key, certificate and chain to flat files
-            with (directory / name + '.key').open('w') as f:
-                f.write(privatekey)
-            with (directory / name + '.crt').open('w') as f:
-                f.write(fullchain)
-            with (directory / name + '.chain.pem').open('w') as f:
-                f.write(chain)
-
-            if sans:
-                for name in sans:
-                    with (directory / name + '.key').open('w') as f:
-                        f.write(privatekey)
-                    with (directory / name + '.crt').open('w') as f:
-                        f.write(fullchain)
-                    with (directory / name + '.chain.pem').open('w') as f:
-                        f.write(chain)
-        else:
-            directory = directory / name
+        if not args.dry:
+            # Create domain     directory if it doesn't exist
+            directory = Path(args.directory)
             if not directory.exists():
                 directory.mkdir()
 
-            # Write private key, certificate and chain to file
-            with (directory / 'privkey.pem').open('w') as f:
-                f.write(privatekey)
+            if args.flat:
+                # Write private key, certificate and chain to flat files
+                with (directory / name + '.key').open('w') as f:
+                    f.write(privatekey)
+                with (directory / name + '.crt').open('w') as f:
+                    f.write(fullchain)
+                with (directory / name + '.chain.pem').open('w') as f:
+                    f.write(chain)
 
-            with (directory / 'cert.pem').open('w') as f:
-                f.write(cert)
+                if sans:
+                    for name in sans:
+                        with (directory / name + '.key').open('w') as f:
+                            f.write(privatekey)
+                        with (directory / name + '.crt').open('w') as f:
+                            f.write(fullchain)
+                        with (directory / name + '.chain.pem').open('w') as f:
+                            f.write(chain)
+            else:
+                directory = directory / name
+                if not directory.exists():
+                    directory.mkdir()
 
-            with (directory / 'chain.pem').open('w') as f:
-                f.write(chain)
+                # Write private key, certificate and chain to file
+                with (directory / 'privkey.pem').open('w') as f:
+                    f.write(privatekey)
 
-            with (directory / 'fullchain.pem').open('w') as f:
-                f.write(fullchain)
+                with (directory / 'cert.pem').open('w') as f:
+                    f.write(cert)
+
+                with (directory / 'chain.pem').open('w') as f:
+                    f.write(chain)
+
+                with (directory / 'fullchain.pem').open('w') as f:
+                    f.write(fullchain)
 
         print('Extracted certificate for: ' + name +
               (', ' + ', '.join(sans) if sans else ''))
@@ -215,6 +217,8 @@ if __name__ == "__main__":
                         help='outputs all certificates into one folder')
     parser.add_argument('-r', '--restart_container', action='store_true',
                         help='uses the docker API to restart containers that are labeled accordingly')
+    parser.add_argument('--dry-run', action='store_true', dest='dry',
+                        help="Don't write files and do not start docker containers.")
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--include', nargs='*')
     group.add_argument('--exclude', nargs='*')
