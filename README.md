@@ -5,21 +5,40 @@ Forked from [DanielHuisman/traefik-certificate-extractor](https://github.com/Dan
 Tool to extract Let's Encrypt certificates from Traefik's ACME storage file. Can automatically restart containers using the docker API.
 
 ## Installation
-```
+```shell
 git clone https://github.com/snowmb/traefik-certificate-extractor
 cd traefik-certificate-extractor
 ```
 
 ## Usage
-```
-python3 extractor.py [FILE]
+```shell
+usage: extractor.py [-h] [-c CERTIFICATE] [-d DIRECTORY] [-f] [-r] [--dry-run]
+                    [--include [INCLUDE [INCLUDE ...]] | --exclude
+                    [EXCLUDE [EXCLUDE ...]]]
+
+Extract traefik letsencrypt certificates.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CERTIFICATE, --certificate CERTIFICATE
+                        file that contains the traefik certificates (default
+                        acme.json)
+  -d DIRECTORY, --directory DIRECTORY
+                        output folder
+  -f, --flat            outputs all certificates into one folder
+  -r, --restart_container
+                        uses the docker API to restart containers that are
+                        labeled accordingly
+  --dry-run             Don't write files and do not start docker containers.
+  --include [INCLUDE [INCLUDE ...]]
+  --exclude [EXCLUDE [EXCLUDE ...]]
 ```
 Default file is `./data/acme.json`. The output directories are `./certs` and `./certs_flat`.
 
 ## Docker
 There is a Docker image available for this tool: [snowmb/traefik-certificate-extractor](https://hub.docker.com/r/snowmb/traefik-certificate-extractor/).
 Example run:
-```
+```shell
 docker run --name extractor -d \
   -v /opt/traefik:/app/data \
   -v ./certs:/app/certs \
