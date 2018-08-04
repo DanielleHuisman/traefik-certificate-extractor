@@ -4,6 +4,7 @@ import errno
 import time
 import json
 import docker
+import threading
 import argparse
 from argparse import ArgumentTypeError as err
 from base64 import b64decode
@@ -168,6 +169,9 @@ class Handler(FileSystemEventHandler):
 
     def __init__(self, args):
         self.args = args
+        self.isWaiting = False
+        self.timer = threading.Timer(0.5, self.doTheWork)
+        self.lock = threading.Lock()
 
     def on_created(self, event):
         self.handle(event)
@@ -181,10 +185,19 @@ class Handler(FileSystemEventHandler):
         if not event.is_directory and event.src_path.endswith(str(self.args.certificate)):
             print('Certificates changed')
 
-            domains = createCerts(
-                event.src_path, self.args.directory, self.args.flat)
-            if (self.args.restart_container):
-                restartContainerWithDomains(domains)
+            with self.lock:
+                if not self.isWaiting:
+                    self.isWaiting = True #trigger the work just once (multiple events get fired)
+                    self.timer = threading.Timer(0.5, self.doTheWork)
+                    self.timer.start()
+    
+    def doTheWork(self):
+        domains = createCerts(self.args.certificate, self.args.directory, self.args.flat)
+        if (self.args.restart_container):
+            restartContainerWithDomains(domains)
+            
+        with self.lock:
+            self.isWaiting = False
 
 
 if __name__ == "__main__":
