@@ -43,9 +43,9 @@ docker run --name extractor -d \
   -v /opt/traefik:/app/data \
   -v ./certs:/app/certs \
   -v /var/run/docker.socket:/var/run/docker.socket \
-  snowmb/traefik-certificate-extractor
+  snowmb/traefik-certificate-extractor 
 ```
-Mount the whole folder containing the traefik certificate file as `/app/data`. The extracted certificates are going to be written to `/app/certs`.
+Mount the whole folder containing the traefik certificate file (`acme.json`) as `/app/data`. The extracted certificates are going to be written to `/app/certs`.
 The docker socket is used to find any containers with this label: `com.github.SnowMB.traefik-certificate-extractor.restart_domain=<DOMAIN>`.
 If the domains of an extracted certificate and the restart domain matches, the container is restarted. Multiple domains can be given seperated by `,`.
 
