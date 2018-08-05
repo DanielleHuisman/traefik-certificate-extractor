@@ -1,12 +1,10 @@
 # Traefik Certificate Extractor
 
-Forked from [DanielHuisman/traefik-certificate-extractor](https://github.com/DanielHuisman/traefik-certificate-extractor)
-
 Tool to extract Let's Encrypt certificates from Traefik's ACME storage file. Can automatically restart containers using the docker API.
 
 ## Installation
 ```shell
-git clone https://github.com/snowmb/traefik-certificate-extractor
+git clone https://github.com/DanielHuisman/traefik-certificate-extractor
 cd traefik-certificate-extractor
 ```
 
@@ -36,17 +34,17 @@ optional arguments:
 Default file is `./data/acme.json`. The output directories are `./certs` and `./certs_flat`.
 
 ## Docker
-There is a Docker image available for this tool: [snowmb/traefik-certificate-extractor](https://hub.docker.com/r/snowmb/traefik-certificate-extractor/).
+There is a Docker image available for this tool: [DanielHuisman/traefik-certificate-extractor](https://hub.docker.com/r/DanielHuisman/traefik-certificate-extractor/).
 Example run:
 ```shell
 docker run --name extractor -d \
   -v /opt/traefik:/app/data \
   -v ./certs:/app/certs \
   -v /var/run/docker.socket:/var/run/docker.socket \
-  snowmb/traefik-certificate-extractor 
+  DanielHuisman/traefik-certificate-extractor 
 ```
 Mount the whole folder containing the traefik certificate file (`acme.json`) as `/app/data`. The extracted certificates are going to be written to `/app/certs`.
-The docker socket is used to find any containers with this label: `com.github.SnowMB.traefik-certificate-extractor.restart_domain=<DOMAIN>`.
+The docker socket is used to find any containers with this label: `com.github.DanielHuisman.traefik-certificate-extractor.restart_domain=<DOMAIN>`.
 If the domains of an extracted certificate and the restart domain matches, the container is restarted. Multiple domains can be given seperated by `,`.
 
 
