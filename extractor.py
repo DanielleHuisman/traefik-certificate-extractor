@@ -9,18 +9,20 @@ from watchdog.events import FileSystemEventHandler
 
 class Handler(FileSystemEventHandler):
     def on_created(self, event):
-        self.handle(event)
+        self.handleEvent(event)
 
     def on_modified(self, event):
-        self.handle(event)
+        self.handleEvent(event)
 
-    def handle(self, event):
+    def handleEvent(self, event):
         # Check if it's a JSON file
         if not event.is_directory and event.src_path.endswith('.json'):
             print('Certificates changed')
+            self.handleFile(event.src_path)
 
+    def handleFile(self, file):
             # Read JSON file
-            data = json.loads(open(event.src_path).read())
+            data = json.loads(open(file).read())
 
             # Determine ACME version
             try:
@@ -118,6 +120,14 @@ if __name__ == "__main__":
     # Create event handler and observer
     event_handler = Handler()
     observer = Observer()
+
+    # Initial extract
+    if not os.listdir('certs_flat'):
+        acme = path + '/acme.json'
+        if os.path.isfile(acme):
+            event_handler.handleFile(acme)
+        else:
+            print('acme.json not found - skipping initial update')
 
     # Register the directory to watch
     observer.schedule(event_handler, path)
