@@ -25,6 +25,9 @@ class Handler(FileSystemEventHandler):
         # Read JSON file
         data = json.loads(open(file).read())
 
+        if 'leresolver' in data.keys():
+            data = data.get('leresolver')
+
         # Determine ACME version
         try:
             acme_version = 2 if 'acme-v02' in data['Account']['Registration']['uri'] else 1
@@ -50,10 +53,10 @@ class Handler(FileSystemEventHandler):
                 fullchain = c['Certificate']['Certificate']
                 sans = c['Domains']['SANs']
             elif acme_version == 2:
-                name = c['Domain']['Main']
-                privatekey = c['Key']
-                fullchain = c['Certificate']
-                sans = c['Domain']['SANs']
+                name = c.get('domain').get('main')
+                privatekey = c.get('key')
+                fullchain = c.get('certificate')
+                sans = c.get('domain').get('sans') #not certain, haven't tested
 
             # Decode private key, certificate and chain
             privatekey = b64decode(privatekey).decode('utf-8')
