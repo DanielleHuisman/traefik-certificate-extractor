@@ -46,7 +46,7 @@ class Handler(FileSystemEventHandler):
                 challengeData =  data[self.challenge]
             else:
                 print('Available challenges: ' + (', '.join([str(x) for x in list(data.keys())])))
-                raise ValueError('Multiples challenges found, please choose one with --challenge option')
+                raise ValueError('Multiple challenges found, please choose one with --challenge option')
         else:
             challengeData = data
             
