@@ -4,11 +4,16 @@ import errno
 import time
 import json
 import glob
+import argparse
 from base64 import b64decode
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 class Handler(FileSystemEventHandler):
+    def __init__(self, args):
+        self.traefik_version = args.traefikVersion
+        self.challenge = args.challenge
+
     def on_created(self, event):
         self.handle_event(event)
 
@@ -21,24 +26,44 @@ class Handler(FileSystemEventHandler):
             print('Certificate storage changed (' + os.path.basename(event.src_path) + ')')
             self.handle_file(event.src_path)
 
-    def handle_file(self, file):
+    def handle_file(self, file):        
+        try:
+            self.extract_certs(file)
+        except Exception as error:
+            print('Error while handling file ' + file + ': ' + repr(error))
+
+    def extract_certs(self, file):
         # Read JSON file
         data = json.loads(open(file).read())
-
+        
+        # Determine challenge
+        if self.traefik_version == 2:
+            if self.challenge:
+                challengeData = data[self.challenge]
+            elif len(list(data.keys())) == 1:
+                self.challenge = list(data.keys())[0]
+                print('Using challenge: ' + self.challenge)
+                challengeData =  data[self.challenge]
+            else:
+                print('Available challenges: ' + (', '.join([str(x) for x in list(data.keys())])))
+                raise ValueError('Multiples challenges found, please choose one with --challengeName option')
+        else:
+            challengeData = data
+            
         # Determine ACME version
         try:
-            acme_version = 2 if 'acme-v02' in data['Account']['Registration']['uri'] else 1
+            acme_version = 2 if 'acme-v02' in challengeData['Account']['Registration']['uri'] else 1
         except TypeError:
-            if 'DomainsCertificate' in data:
+            if 'DomainsCertificate' in challengeData:
                 acme_version = 1
             else:
                 acme_version = 2
 
         # Find certificates
         if acme_version == 1:
-            certs = data['DomainsCertificate']['Certs']
+            certs = challengeData['DomainsCertificate']['Certs']
         elif acme_version == 2:
-            certs = data['Certificates']
+            certs = challengeData['Certificates']
 
         print('Certificate storage contains ' + str(len(certs)) + ' certificates')
 
@@ -49,11 +74,16 @@ class Handler(FileSystemEventHandler):
                 privatekey = c['Certificate']['PrivateKey']
                 fullchain = c['Certificate']['Certificate']
                 sans = c['Domains']['SANs']
-            elif acme_version == 2:
+            elif acme_version == 2 and self.traefik_version == 1:
                 name = c['Domain']['Main']
                 privatekey = c['Key']
                 fullchain = c['Certificate']
                 sans = c['Domain']['SANs']
+            elif acme_version == 2 and self.traefik_version == 2:
+                name = c['domain']['main']
+                privatekey = c['key']
+                fullchain = c['certificate']
+                sans = c['domain'].get('sans')
 
             # Decode private key, certificate and chain
             privatekey = b64decode(privatekey).decode('utf-8')
@@ -105,8 +135,19 @@ class Handler(FileSystemEventHandler):
             print('Extracted certificate for: ' + name + (', ' + ', '.join(sans) if sans else ''))
 
 if __name__ == "__main__":
-    # Determine path to watch
-    path = sys.argv[1] if len(sys.argv) > 1 else './data'
+    # Determine args
+    parser = argparse.ArgumentParser(description='Traefik certificate extractor')
+    parser.add_argument('path', nargs='?', default='./data', help='Path to traefik acme file')
+    parser.add_argument('-tv', '--traefikVersion', type=int, choices=[1, 2], default=1, help='Traefik version')
+    parser.add_argument('-c', '--challenge', help='Traefik challenge to use (only for traefik v2)')
+
+    args = parser.parse_args()
+
+    print('Path: ' + args.path)
+    print('Traefik version: ' + str(args.traefikVersion))
+
+    if args.traefikVersion >= 2 and args.challenge:
+        print('Traefik challenge: ' + args.challenge)
 
     # Create output directories if it doesn't exist
     try:
@@ -121,20 +162,17 @@ if __name__ == "__main__":
             raise
 
     # Create event handler and observer
-    event_handler = Handler()
+    event_handler = Handler(args)
     observer = Observer()
 
     # Extract certificates from current file(s) before watching
-    files = glob.glob(os.path.join(path, '*.json'))
-    try:
-        for file in files:
-            print('Certificate storage found (' + os.path.basename(file) + ')')
-            event_handler.handle_file(file)
-    except Exception as e:
-        print(e)
+    files = glob.glob(os.path.join(args.path, '*.json'))
+    for file in files:
+        print('Certificate storage found (' + os.path.basename(file) + ')')
+        event_handler.handle_file(file)
 
     # Register the directory to watch
-    observer.schedule(event_handler, path)
+    observer.schedule(event_handler, args.path)
 
     # Main loop to watch the directory
     observer.start()
