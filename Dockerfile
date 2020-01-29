@@ -1,5 +1,5 @@
 # Use Python on Alpine Linux as base image
-FROM python:alpine
+FROM arm32v7/python:latest
 
 # Create working directory
 RUN mkdir -p /app
@@ -15,4 +15,4 @@ RUN pip3 install -r requirements.txt
 COPY . /app
 
 # Define entrypoint of the app
-ENTRYPOINT ["python3", "-u", "extractor.py"]
+ENTRYPOINT ["python3", "-u", "extractor.py", "-c", "data/acme.json", "-d", "certs"]
